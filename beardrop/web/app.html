@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>BearDrop</title>
+<style>
+  :root{ --bg:#faf8f5; --card:#fff; --fg:#1b1612; --muted:#6a5f55; --line:#e8e0d6; --acc:#0d9488; --accd:#0b7d72; }
+  @media (prefers-color-scheme:dark){ :root{ --bg:#151210; --card:#1f1b18; --fg:#f3ece4; --muted:#b3a89c; --line:#332c26; --acc:#1aa596; --accd:#13c2b0; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  header .logo{width:34px;height:34px;flex:0 0 auto}
+  header h1{font-size:20px;margin:0;font-weight:700}
+  header .lang{margin-left:auto;font-size:14px;border:1px solid var(--line);border-radius:7px;padding:3px 10px;background:var(--card);color:var(--fg);cursor:pointer}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+  .card h2{font-size:16px;margin:0 0 12px}
+  .qrbox{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  #qr{width:230px;height:230px;background:#fff;padding:10px;border-radius:12px}
+  #qr img,#qr table{width:100%!important;height:auto!important;image-rendering:pixelated}
+  .url{word-break:break-all;font-size:13px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:600;min-height:46px;padding:0 18px;border-radius:10px;border:0;background:var(--acc);color:#fff;cursor:pointer;text-decoration:none}
+  .btn:active{background:var(--accd)}
+  .btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+  .btn.block{display:flex;width:100%}
+  .drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:26px 14px;text-align:center;color:var(--muted);transition:.15s;cursor:pointer}
+  .drop.over{border-color:var(--acc);color:var(--acc);background:rgba(13,148,136,.05)}
+  input[type=file]{display:none}
+  ul.files{list-style:none;margin:10px 0 0;padding:0}
+  ul.files li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  ul.files li .name{flex:1;min-width:0;word-break:break-all}
+  ul.files li .size{color:var(--muted);font-size:13px;flex:0 0 auto}
+  .prog{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+  .prog > i{display:block;height:100%;width:0;background:var(--acc);transition:width .1s}
+  .muted{color:var(--muted);font-size:13.5px}
+  .empty{color:var(--muted);font-size:14px;padding:6px 0}
+  .ok{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="logo" viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="g" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#F5CF7A"/><stop offset=".6" stop-color="#D9A043"/><stop offset="1" stop-color="#A9701F"/></radialGradient></defs><circle cx="26" cy="35" r="12" fill="#D9A043"/><circle cx="94" cy="33" r="12" fill="#D9A043"/><circle cx="26" cy="35" r="6" fill="#A9701F"/><circle cx="94" cy="33" r="6" fill="#A9701F"/><path d="M7 67 C7 46 32 34 60 34 C88 34 113 46 113 67 C113 88 88 102 60 102 C32 102 7 88 7 67 Z" fill="url(#g)"/><circle cx="38" cy="59" r="5.5" fill="#24140A"/><circle cx="82" cy="59" r="5.5" fill="#24140A"/><circle cx="60" cy="68" r="2.8" fill="#24140A"/></svg>
+    <h1>BearDrop</h1>
+    <button class="lang" id="langBtn" type="button"></button>
+  </header>
+
+  <!-- 电脑端：二维码 -->
+  <div class="card qrbox" id="hostCard" style="display:none">
+    <h2 id="t-scan"></h2>
+    <div id="qr"></div>
+    <div class="url" id="hostUrl"></div>
+    <div class="muted" id="t-samewifi"></div>
+  </div>
+
+  <!-- 手机/双向：发送到电脑 -->
+  <div class="card">
+    <h2 id="t-send"></h2>
+    <label class="drop" id="drop" for="fileInput">
+      <div id="t-drophint"></div>
+      <input type="file" id="fileInput" multiple>
+    </label>
+    <ul class="files" id="upList"></ul>
+  </div>
+
+  <!-- 从电脑下载 -->
+  <div class="card">
+    <h2 id="t-recv"></h2>
+    <ul class="files" id="dlList"></ul>
+    <div class="empty" id="dlEmpty"></div>
+  </div>
+
+  <p class="muted" id="t-privacy"></p>
+</div>
+
+<!--BD_INJECT--><!-- 服务端会在此注入 <script>window.BD={...}</script> -->
+<script src="qrcode.js"></script>
+<script>
+window.BD = window.BD || {role:"host", token:"demo", mobileUrl:"http://127.0.0.1:18650/m?k=demo"};
+(function(){
+  var BD = window.BD, k = BD.token;
+  var zh = /^zh/i.test(navigator.language||"");
+  try{ var s=localStorage.getItem("bd_lang"); if(s) zh=(s=="zh"); }catch(e){}
+  var T = {
+    scan:["扫码从手机连接","Scan to connect from your phone"],
+    samewifi:["手机和这台电脑要连同一个 Wi‑Fi。","Keep your phone on the same Wi‑Fi as this computer."],
+    send:["发送到这台电脑","Send to this computer"],
+    drophint:["点这里选择文件，或把文件拖进来","Tap to choose files, or drop them here"],
+    recv:["从这台电脑下载","Download from this computer"],
+    dlempty:["这台电脑还没有分享文件。在电脑上点「添加文件」即可。","No shared files yet. Click “Add files” on the computer."],
+    privacy:["文件只在你的局域网里传输，不经过任何服务器。","Files transfer over your local network only — never through any server."],
+    sending:["发送中","Sending"], done:["已发送","Sent"], failed:["失败","Failed"]
+  };
+  function tr(a){ return zh?a[0]:a[1]; }
+  function setText(){
+    document.getElementById("langBtn").textContent = zh?"EN":"中";
+    var map={ "t-scan":T.scan,"t-samewifi":T.samewifi,"t-send":T.send,"t-drophint":T.drophint,"t-recv":T.recv,"dlEmpty":T.dlempty,"t-privacy":T.privacy };
+    for(var id in map){ var el=document.getElementById(id); if(el) el.textContent=tr(map[id]); }
+    document.documentElement.lang = zh?"zh":"en";
+  }
+  document.getElementById("langBtn").onclick=function(){ zh=!zh; try{localStorage.setItem("bd_lang",zh?"zh":"en");}catch(e){} setText(); };
+  setText();
+
+  // 电脑端二维码
+  if(BD.role==="host"){
+    document.getElementById("hostCard").style.display="";
+    document.getElementById("hostUrl").textContent = BD.mobileUrl;
+    try{
+      var qr=qrcode(0,"M"); qr.addData(BD.mobileUrl); qr.make();
+      document.getElementById("qr").innerHTML = qr.createImgTag(6,0);
+    }catch(e){ document.getElementById("qr").textContent = BD.mobileUrl; }
+  }
+
+  function fmtSize(n){ if(n<1024)return n+" B"; if(n<1048576)return (n/1024).toFixed(1)+" KB"; if(n<1073741824)return (n/1048576).toFixed(1)+" MB"; return (n/1073741824).toFixed(2)+" GB"; }
+
+  // 上传：一个文件一个请求，文件名放 header，body 是原始字节（C# 无需解析 multipart）
+  var upList=document.getElementById("upList");
+  function uploadFile(file){
+    var li=document.createElement("li");
+    li.innerHTML='<span class="name"></span><span class="size"></span>';
+    li.querySelector(".name").textContent=file.name;
+    li.querySelector(".size").textContent=fmtSize(file.size);
+    var prog=document.createElement("div"); prog.className="prog"; var bar=document.createElement("i"); prog.appendChild(bar);
+    li.appendChild(prog); upList.insertBefore(li,upList.firstChild);
+    var xhr=new XMLHttpRequest();
+    xhr.open("POST","up?k="+encodeURIComponent(k));
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress=function(e){ if(e.lengthComputable) bar.style.width=(e.loaded/e.total*100)+"%"; };
+    xhr.onload=function(){ var s=li.querySelector(".size"); if(xhr.status>=200&&xhr.status<300){ bar.style.width="100%"; s.textContent=tr(T.done); s.className="size ok"; refreshList(); } else { s.textContent=tr(T.failed); } };
+    xhr.onerror=function(){ li.querySelector(".size").textContent=tr(T.failed); };
+    xhr.send(file);
+  }
+  var fi=document.getElementById("fileInput");
+  fi.onchange=function(){ for(var i=0;i<fi.files.length;i++) uploadFile(fi.files[i]); fi.value=""; };
+  var drop=document.getElementById("drop");
+  ["dragenter","dragover"].forEach(function(ev){ drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add("over");}); });
+  ["dragleave","drop"].forEach(function(ev){ drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove("over");}); });
+  drop.addEventListener("drop",function(e){ var f=e.dataTransfer.files; for(var i=0;i<f.length;i++) uploadFile(f[i]); });
+
+  // 下载列表：轮询 /list
+  var dlList=document.getElementById("dlList"), dlEmpty=document.getElementById("dlEmpty");
+  function refreshList(){
+    var xhr=new XMLHttpRequest(); xhr.open("GET","list?k="+encodeURIComponent(k));
+    xhr.onload=function(){ if(xhr.status!==200) return; var items; try{items=JSON.parse(xhr.responseText);}catch(e){return;}
+      dlList.innerHTML=""; dlEmpty.style.display = items.length?"none":"";
+      items.forEach(function(it){
+        var li=document.createElement("li");
+        var a=document.createElement("a"); a.className="name"; a.textContent=it.name; a.href="dl/"+it.id+"?k="+encodeURIComponent(k); a.setAttribute("download",it.name);
+        var s=document.createElement("span"); s.className="size"; s.textContent=fmtSize(it.size);
+        li.appendChild(a); li.appendChild(s); dlList.appendChild(li);
+      });
+    };
+    xhr.send();
+  }
+  refreshList(); setInterval(refreshList, 3000);
+})();
+</script>
+</body>
+</html>
